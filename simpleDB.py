@@ -455,13 +455,13 @@ def run_select(data, sentence_select):
     list_fields = sentence_select.split(',')
     for i in range(len(list_fields)):
         field = list_fields[i].strip()
+
         if "." not in field:
             for j in range(len(data[0])):
                 if field == data[0][j].split('.')[1]:
                     field = data[0][j]
                     break
         list_fields[i] = field
-
     # 字段
 
     list_indexs = []
@@ -473,41 +473,76 @@ def run_select(data, sentence_select):
                 break
         else:
             list_indexs.append(field_select)
-    new_data = []
 
-    # 判断是否有聚合函数
-    for index in list_fields:
-        if index.lower().startswith("count"):
-            # 找到要 Count 的字段
-            indexl = index.index('(')
-            indexr = index.index(')')
-            field = index[indexl + 1: indexr].strip()
+    new_data = [[]]
+    # 处理头信息
+    exist_agg_func = False
+    for content_index in list_indexs:
+        if str(content_index).lower().startswith("count"):
+            new_data[0].append(content_index)
+            exist_agg_func = True
+        elif str(content_index) == '*':
+            for content in data[0]:
+                new_data[0].append(content)
+        else:
+            new_data[0].append(data[0][content_index])
 
-            if isinstance(data[1], list):
-                new_data = [[index]]
-                for group in data[1:]:
+    if exist_agg_func:
+        if isinstance(data[1][0], list):
+            for each_group in data[1:]:
+                new_line = []
+                for content_index in list_indexs:
+                    # 判断是否有聚合函数
+                    if str(content_index).lower().startswith("count"):
+                        # 找到要 Count 的字段
+                        indexl = content_index.index('(')
+                        indexr = content_index.index(')')
+                        field = content_index[indexl + 1: indexr].strip()
+                        new_group = [data[0]]
+                        for line in each_group:
+                            new_group.append(line)
+                        new_line.append(agg_func(new_group, "Count", field))
+                    elif str(content_index) == '*':
+                        for content in each_group[0]:
+                            new_line.append(content)
+                    else:
+                        new_line.append(each_group[0][content_index])
+                new_data.append(new_line)
+        else:
+            for each_line in data[1:]:
+                new_line = []
+                ok = False
+                for content_index in list_indexs:
+                    # 判断是否有聚合函数
+                    if str(content_index).lower().startswith("count"):
+                        # 找到要 Count 的字段
+                        indexl = content_index.index('(')
+                        indexr = content_index.index(')')
+                        field = content_index[indexl + 1: indexr].strip()
+                        new_line.append(agg_func(data, "Count", field))
+                        ok = True
+                    elif str(content_index) == '*':
+                        for content in each_line:
+                            new_line.append(content)
+                    else:
+                        new_line.append(each_line[content_index])
+                new_data.append(new_line)
+                if ok:
+                    break
+    else:
+        for group_line in data[1:]:
+            if isinstance(group_line[0], list):
+                group_line = group_line[0]
 
-                    new_group = [data[0]]
-                    for each_line in group:
-                        new_group.append(each_line)
-                    new_data.append([agg_func(new_group, "count", field)])
-
-            else:
-                new_data = [[index], [agg_func(data, "count", field)]]
-            # 是否有多个组
-            return new_data
-
-    for each_line in data:
-        if isinstance(each_line[0], list):
-            each_line = each_line[0]
-        new_line = []
-        for index in list_indexs:
-            if index == '*':
-                for content in each_line:
-                    new_line.append(content)
-                continue
-            new_line.append(each_line[index])
-        new_data.append(new_line)
+            new_line = []
+            for content_index in list_indexs:
+                # 判断是否有聚合函数
+                if str(content_index) == '*':
+                    for content in group_line:
+                        new_line.append(content)
+                else:
+                    new_line.append(group_line[content_index])
+            new_data.append(new_line)
     return new_data
 
 
@@ -527,7 +562,7 @@ def check_relops(field1, ops, field2):
     return True
 
 
-def agg_func(group, func_name, field):
+def agg_func(group, func_name, field='*'):
     if func_name.lower() == "Count".lower():
         if field == '*':
             return len(group) - 1
@@ -551,6 +586,16 @@ def agg_func(group, func_name, field):
 
 def run_having(data, sentence_having):
     # Count(*) >= 2 某个聚合函数
+    list_ops = ["!=", ">=", "<=", '<', '>', '=']
+    # 以列表中的符号左右添加 空格
+    for op in list_ops:
+        if op in sentence_having:
+            index = sentence_having.index(op)
+            _len = len(op)
+            sentence_having = sentence_having[:index] + " " + sentence_having[index:index + _len] + " " + \
+                             sentence_having[index + _len:]
+            break
+
     index = read_mulspace(sentence_having, 0)
     tmp_index = read_a_word(sentence_having, index, another_space=['('])
     func_name = sentence_having[index: tmp_index].strip()
@@ -585,7 +630,7 @@ def run_having(data, sentence_having):
             new_group = [data[0]]
             for each_line in each_group:
                 new_group.append(each_line)
-            num = agg_func(new_group, func_name)
+            num = agg_func(new_group, func_name, list_params[0])
             if check_relops(num, ops, field2):
                 new_data.append(each_group)
     return new_data
