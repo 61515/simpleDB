@@ -10,7 +10,6 @@ def read_table(tbName):
     tbPath = r"C:\Program Files\simpleDb"
     tbPath += "\\" + tbName + ".tb"
     list2_tb = []
-
     if os.path.exists(tbPath) is False:
         return None
 
@@ -593,7 +592,7 @@ def run_having(data, sentence_having):
             index = sentence_having.index(op)
             _len = len(op)
             sentence_having = sentence_having[:index] + " " + sentence_having[index:index + _len] + " " + \
-                             sentence_having[index + _len:]
+                              sentence_having[index + _len:]
             break
 
     index = read_mulspace(sentence_having, 0)
@@ -678,124 +677,165 @@ def run_groupby(data, sentence_groupby):
 
 
 def run_where(data, sentence_where):
+    # 用 'and' 和 'or' 分割 整个子句
     # SC.Cno = Course.Cno
     # 暂且只支持 > < = != >= <=
     list_ops = ["!=", ">=", "<=", '<', '>', '=']
+
+    and_or = 0
+    if "and" in sentence_where:
+        list_sentence_where = sentence_where.split("and")
+        and_or = 1
+    elif "or" in sentence_where:
+        list_sentence_where = sentence_where.split("or")
+        and_or = 2
+    else:
+        list_sentence_where = [sentence_where]
+
     # 以列表中的符号左右添加 空格
-    for op in list_ops:
-        if op in sentence_where:
-            index = sentence_where.index(op)
-            _len = len(op)
-            sentence_where = sentence_where[:index] + " " + sentence_where[index:index+_len] + " " + \
-                sentence_where[index+_len:]
-            break
+    for i in range(len(list_sentence_where)):
+        for op in list_ops:
+            if op in list_sentence_where[i]:
+                index = list_sentence_where[i].index(op)
+                _len = len(op)
+                list_sentence_where[i] = list_sentence_where[i][:index] + " " + \
+                                         list_sentence_where[i][index:index + _len] + " " + \
+                                         list_sentence_where[i][index + _len:]
+                break
 
-    index = read_mulspace(sentence_where, 0)
+    list_newdata = []
+    for sentence_where in list_sentence_where:
+        index = read_mulspace(sentence_where, 0)
 
-    tmp_index = read_a_word(sentence_where, index)
-    field1 = sentence_where[index: tmp_index]
-    index = tmp_index
+        tmp_index = read_a_word(sentence_where, index)
+        field1 = sentence_where[index: tmp_index]
+        index = tmp_index
 
-    index = read_mulspace(sentence_where, index)
-
-    tmp_index = read_a_word(sentence_where, index)
-    ops = sentence_where[index: tmp_index]
-    index = tmp_index
-
-    if ops in list_ops:
         index = read_mulspace(sentence_where, index)
 
         tmp_index = read_a_word(sentence_where, index)
-        field2 = sentence_where[index: tmp_index]
-        # 预处理 int,str 类型
+        ops = sentence_where[index: tmp_index]
+        index = tmp_index
 
-        type1 = "str"
-        type2 = "str"
-        list_type = ["int", "str", "float"]
-        for _type in list_type:
-            if field1.startswith(_type):
-                type1 = _type
-                index_l = field1.index('(')
-                index_r = field1.index(')')
-                field1 = field1[index_l + 1: index_r]
-                if field1 is None or len(field1) <= 0:
-                    raise Exception
+        if ops in list_ops:
+            index = read_mulspace(sentence_where, index)
 
-            if field2.startswith(_type):
-                type2 = _type
-                index_l = field2.index('(')
-                index_r = field2.index(')')
-                field2 = field2[index_l + 1: index_r]
-                if field2 is None or len(field2) <= 0:
-                    raise Exception
-        # 确定字段的正确性
+            tmp_index = read_a_word(sentence_where, index)
+            field2 = sentence_where[index: tmp_index]
+            # 预处理 int,str 类型
 
-        index1 = -1
-        index2 = -1
-        if "." not in field1:
-            for i in range(len(data[0])):
-                field = data[0][i]
-                if field1 == field.split('.')[1]:
-                    index1 = i
-        else:
-            for i in range(len(data[0])):
-                field = data[0][i]
-                if field == field1:
-                    index1 = i
-        if "." not in field2:
-            for i in range(len(data[0])):
-                field = data[0][i]
-                if field2 == field.split('.')[1]:
-                    index2 = i
-        else:
-            for i in range(len(data[0])):
-                field = data[0][i]
-                if field == field2:
-                    index2 = i
+            type1 = "str"
+            type2 = "str"
+            list_type = ["int", "str", "float"]
+            for _type in list_type:
+                if field1.startswith(_type):
+                    type1 = _type
+                    index_l = field1.index('(')
+                    index_r = field1.index(')')
+                    field1 = field1[index_l + 1: index_r]
+                    if field1 is None or len(field1) <= 0:
+                        raise Exception
 
-        # 进行字段的判断
-        new_data = [data[0]]
+                if field2.startswith(_type):
+                    type2 = _type
+                    index_l = field2.index('(')
+                    index_r = field2.index(')')
+                    field2 = field2[index_l + 1: index_r]
+                    if field2 is None or len(field2) <= 0:
+                        raise Exception
+            # 确定字段的正确性
 
-        for each_line in data[1:]:
-            if index1 != -1:
-                content1 = each_line[index1]
+            index1 = -1
+            index2 = -1
+            if "." not in field1:
+                for i in range(len(data[0])):
+                    field = data[0][i]
+                    if field1 == field.split('.')[1]:
+                        index1 = i
             else:
-                content1 = field1
-
-            if index2 != -1:
-                content2 = each_line[index2]
+                for i in range(len(data[0])):
+                    field = data[0][i]
+                    if field == field1:
+                        index1 = i
+            if "." not in field2:
+                for i in range(len(data[0])):
+                    field = data[0][i]
+                    if field2 == field.split('.')[1]:
+                        index2 = i
             else:
-                content2 = field2
+                for i in range(len(data[0])):
+                    field = data[0][i]
+                    if field == field2:
+                        index2 = i
 
-            # 若字段有引号 则去掉
-            if content1[0] == '\'' and content1[-1] == '\'' or \
-                    content1[0] == '\"' and content1[-1] == '\"':
-                content1 = content1[1:-1]
+            # 进行字段的判断
+            new_data = [data[0]]
 
-            if content2[0] == '\'' and content2[-1] == '\'' or \
-                    content2[0] == '\"' and content2[-1] == '\"':
-                content2 = content2[1:-1]
+            for each_line in data[1:]:
+                if index1 != -1:
+                    content1 = each_line[index1]
+                else:
+                    content1 = field1
 
-            if type1 == "int":
-                content1 = int(content1)
-            elif type1 == "float":
-                content1 = float(content1)
-            elif type1 == "str":
-                content1 = str(content1)
+                if index2 != -1:
+                    content2 = each_line[index2]
+                else:
+                    content2 = field2
 
-            if type2 == "int":
-                content2 = int(content2)
-            elif type2 == "float":
-                content2 = float(content2)
-            elif type2 == "str":
-                content2 = str(content2)
+                # 若字段有引号 则去掉
+                if content1[0] == '\'' and content1[-1] == '\'' or \
+                        content1[0] == '\"' and content1[-1] == '\"':
+                    content1 = content1[1:-1]
 
-            if check_relops(content1, ops, content2):
+                if content2[0] == '\'' and content2[-1] == '\'' or \
+                        content2[0] == '\"' and content2[-1] == '\"':
+                    content2 = content2[1:-1]
+
+                if type1 == "int":
+                    content1 = int(content1)
+                elif type1 == "float":
+                    content1 = float(content1)
+                elif type1 == "str":
+                    content1 = str(content1)
+
+                if type2 == "int":
+                    content2 = int(content2)
+                elif type2 == "float":
+                    content2 = float(content2)
+                elif type2 == "str":
+                    content2 = str(content2)
+
+                if check_relops(content1, ops, content2):
+                    new_data.append(each_line)
+            list_newdata.append(new_data)
+
+        else:
+            raise Exception
+    if and_or == 1:
+        # 共有的数据
+        new_data = []
+
+        for each_line in list_newdata[0]:
+            ok = True
+            for data in list_newdata[1:]:
+                if each_line not in data:
+                    ok = False
+            if ok:
                 new_data.append(each_line)
         return new_data
+    elif and_or == 2:
+        new_data = []
 
+        for each_line in list_newdata[0]:
+            ok = False
+            for data in list_newdata[1:]:
+                if each_line not in data:
+                    ok = True
+            if ok:
+                new_data.append(each_line)
+        return new_data
     else:
-        raise Exception
+        return list_newdata[0]
 
 
 # 第一个参数 True,False ,第二个参数 结果源
@@ -988,17 +1028,30 @@ def insert_data(sentence):
     if result2[0] is False:
         return False
     index = result2[1]
+    list2_contents = []
 
-    index = read_mulspace(sentence, index)
-    if sentence[index] != '(':
+    while True:
+        index = read_mulspace(sentence, index)
+        if index >= len(sentence) or sentence[index] != '(':
+            break
+
+        tmp_index = read_a_word(sentence, index, another_space=[')'], except_space=[' ', '\t', '\n'])
+
+        if tmp_index - index <= 1:
+            break
+        list_contents = sentence[index + 1: tmp_index].strip().split(',')
+        list2_contents.append(list_contents)
+
+        index = tmp_index + 1
+
+    if len(list2_contents) <= 0:
         return False
-
-    tmp_index = read_a_word(sentence, index, another_space=[')'], except_space=[' ', '\t', '\n'])
-    list_contents = sentence[index + 1: tmp_index].strip().split(',')
 
     # 校验字段和内容
     data = read_table(table_name)
     title = data[0]
+
+    # for 循环读入列表，然后写入
     for i in range(len(list_fields)):
         list_fields[i] = list_fields[i].strip()
         if list_fields[i][0] == '\"' and list_fields[i][-1] == "\"" or \
@@ -1010,12 +1063,16 @@ def insert_data(sentence):
                     list_fields[i] = field
                     break
 
-    for i in range(len(list_contents)):
-        list_contents[i] = list_contents[i].strip()
-        content = list_contents[i]
-        if content[0] == '\"' and content[-1] == "\"" or \
-                content[0] == '\'' and content[-1] == "\'":
-            list_contents[i] = content[1:-1]
+    for i in range(len(list2_contents)):
+        for j in range(len(list2_contents[i])):
+            list2_contents[i][j] = list2_contents[i][j].strip()
+            content = list2_contents[i][j]
+            if len(content) <= 0:
+                continue
+
+            if content[0] == '\"' and content[-1] == "\"" or \
+                    content[0] == '\'' and content[-1] == "\'":
+                list2_contents[i][j] = content[1:-1]
 
     # 读表并操纵列表结构
     list_index = []
@@ -1028,10 +1085,11 @@ def insert_data(sentence):
     if len(list_index) != len(title):
         return False
 
-    line = []
-    for index in list_index:
-        line.append(list_contents[index])
-    data.append(line)
+    for list_contents in list2_contents:
+        line = []
+        for index in list_index:
+            line.append(list_contents[index])
+        data.append(line)
 
     write_table(table_name, data)
     return True
@@ -1322,10 +1380,13 @@ def run_pattern2(sql_sentence):
 
 # 运行模式3，可以进行python语句的直接执行
 def run_pattern3(sentence):
+    # exec(sentence, np)
     try:
-        exec(sentence)
-    except Exception:
-        print("执行Python 语句失败")
+        exec(sentence, np)
+    except Exception as e:
+        print(e)
+    else:
+        print("执行语句成功")
 
 
 def read_multi_lines():
@@ -1342,6 +1403,9 @@ if __name__ == '__main__':
     colorama.init()
     run_mode = 2
     First = True
+
+    np = globals()
+
     while True:
         if run_mode == 1:
             if First:

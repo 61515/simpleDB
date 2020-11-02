@@ -49,9 +49,36 @@
 
     本程序适用于数据量不大且数据逻辑不复杂时，可以比较方便的直接对数据进行操作
     例如，计算本班成绩绩点
-
+    table_grade1 = read_table("grade1")
+    list_credits = table_grade1[1]
+    for student in table_grade1[2:]:
+        sum = 0
+        all_credit = 0
+        for j in range(2,len(student)):
+            if student[j] != "":
+                sum += int(student[j]) * int(list_credits[j])
+                all_credit += int(list_credits[j])
+        res = sum / all_credit
+        print("%.2f" % res)
+    
+    又例(两表联合求绩点):
+        table_grade = run_where(union_table(read_table("grade1"),read_table("grade2")), "grade1.学号 = grade2.学号")
+        list_credits = table_grade[1]
+        title = table_grade[0]
+        for student in table_grade[2:]:
+            sum = 0
+            all_credit = 0
+            for j in range(len(student)):
+                if "学号" in title[j] or "姓名" in title[j]:
+                    continue
+                if student[j] != "":
+                    sum += int(student[j]) * int(list_credits[j])
+                    all_credit += int(list_credits[j])
+            res = sum / all_credit
+            print("%.2f" % res)
 说明:
-
+    
+    源数据源于http://db.itoi.sd.cn/
     数据表在程序中"二维列表"数据结构表示
     数据的修改建议直接修改.tb文件
     默认第一行为表头，且无字段约束，所以在输入sql语句的时候要加上类型,例如int(Student.Sname)
